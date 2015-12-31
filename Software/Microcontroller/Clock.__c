@@ -1,0 +1,22 @@
+[Settings]
+Target=PIC16F876
+Active Compiler=BoostC
+Active Directory=F:\cygwin64\home\Adrien\Clock\Software\Microcontroller\
+Active Config=Release
+Last Ext=h
+Last ExtIdx=1
+Last Dir=C:\Program Files\SourceBoost\include\
+Profiling=0
+Snapshot=0
+[Files]
+Count=6
+File0=Alarm.h
+File1=Main.c
+File2=RTC.c
+File3=RTC.h
+File4=Link.c
+File5=Link.h
+[Watch]
+Count=0
+[Watchpoint]
+Count=0
