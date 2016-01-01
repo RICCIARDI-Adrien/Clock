@@ -3,6 +3,7 @@
  * @author Adrien RICCIARDI
  */
 #include <system.h>
+#include "Ring.h"
 #include "RTC.h"
 #include "UART.h"
 
@@ -24,24 +25,37 @@ static unsigned char Main_Alarm_Hour;
 static unsigned char Main_Alarm_Minutes;
 
 //--------------------------------------------------------------------------------------------------
+// Interrupts handler
+//--------------------------------------------------------------------------------------------------
+void interrupt(void)
+{
+	if (RING_HAS_INTERRUPT_FIRED()) RingInterruptHandler();
+}
+
+//--------------------------------------------------------------------------------------------------
 // Entry point
 //--------------------------------------------------------------------------------------------------
 void main(void)
 {
 	TRTCClockData Clock_Data;
-	unsigned char i;
+	unsigned char i, j = 0;
 
 	// Initialize the modules
 	RTCInitialize();
 	UARTInitialize();
+	RingInitialize();
 	
 	// Enable interrupts
-	// TODO
+	intcon.PEIE = 1; // Enable peripherals interrupts
+	intcon.GIE = 1; // Enable all interrupts
 
+	// TEST
 	portb.7 = 0;
 	portb.6 = 0;
 	trisb.7 = 0;
 	trisb.6 = 0;
+	
+	RingStart();
 	
 	while (1)
 	{
@@ -116,6 +130,9 @@ void main(void)
 		}
 		
 		RTC_WAIT_TICK_END();
+		
+		j++;
+		if (j == 10) RingStop();
 	}
 	
 	while (1);
