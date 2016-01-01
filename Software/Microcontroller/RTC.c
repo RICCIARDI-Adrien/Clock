@@ -81,21 +81,22 @@ inline void RTCWriteRegister(TRTCRegister Register, unsigned char Value)
 	// The minimum bus free time between a STOP and a START must be at least 4.7µs, but the microcontroller is so slow that there is no need to take that into account
 }
 
+// TODO remove if useless
 /** Convert a BCD value to binary.
  * @param Binary_Coded_Decimal_Value The value to convert. First BCD digit is held in bits 7..4, second BCD digit stays in bits 3..0.
  * @return The binary value of the BCD number.
  */
 /*inline unsigned char RTCConvertBinaryCodedDecimalToBinary(unsigned char Binary_Coded_Decimal_Value)
 {
-	unsigned char Decade;
+	unsigned char Tens;
 	
-	// Extract the decade value
-	Decade = (Binary_Coded_Decimal_Value >> 4) & 0x0F;
+	// Extract the tens value
+	Tens = (Binary_Coded_Decimal_Value >> 4) & 0x0F;
 	
 	// Multiply it by ten using shifts
-	Decade = (Decade << 8) + (Decade << 2);
+	Tens = (Tens << 8) + (Tens << 2);
 	
-	return Decade + (Binary_Coded_Decimal_Value & 0x0F);
+	return Tens + (Binary_Coded_Decimal_Value & 0x0F);
 }*/
 
 //--------------------------------------------------------------------------------------------------
@@ -103,12 +104,14 @@ inline void RTCWriteRegister(TRTCRegister Register, unsigned char Value)
 //--------------------------------------------------------------------------------------------------
 void RTCInitialize(void)
 {
+	TRTCClockData Clock_Data;
+	
 	// Set I2C pins as inputs
 	trisc.3 = 1;
 	trisc.4 = 1;
 	
 	// Set the pin connected to SWQ/OUT as input
-	trisb.1 = 0;
+	trisb.1 = 1;
 	
 	// Initialize the I2C module at 100KHz
 	sspstat = 0x80; // Disable the slew rate control as requested for 100KHz speed mode, input levels conform to I2C
@@ -116,7 +119,11 @@ void RTCInitialize(void)
 	sspadd = 9; // Baud_Rate = Fosc / (4 * (SSPADD + 1)) => SSPADD = (Fosc / (4 * Baud_Rate)) - 1
 	sspcon = 0x28; // Enable I2C module in Master mode
 	
-	// Configure the RTC to generate an interrupt each second. On the first RTC boot, the clock will not run until the time and date are set through the UART
+	// On the first RTC boot, the Clock Halt bit will be set and will prevent the clock from running, so clear this bit if needed
+	RTCGetDateAndTime(&Clock_Data);
+	if (Clock_Data.Register_Name.Seconds & 0x80) RTCWriteRegister(RTC_REGISTER_SECONDS, 0); // No need to set a valid seconds count as the RTC time and date are not configured
+	
+	// Configure the RTC to generate an interrupt each second
 	RTCWriteRegister(RTC_REGISTER_CONTROL, 0x90);
 }
 
