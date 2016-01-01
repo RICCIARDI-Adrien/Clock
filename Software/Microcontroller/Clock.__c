@@ -14,8 +14,8 @@ File0=Alarm.h
 File1=Main.c
 File2=RTC.c
 File3=RTC.h
-File4=Link.c
-File5=Link.h
+File4=UART.c
+File5=UART.h
 [Watch]
 Count=0
 [Watchpoint]

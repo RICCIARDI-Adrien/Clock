@@ -3,8 +3,8 @@
  * @author Adrien RICCIARDI
  */
 #include <system.h>
-#include "Link.h"
 #include "RTC.h"
+#include "UART.h"
 
 //--------------------------------------------------------------------------------------------------
 // Microcontroller configuration
@@ -15,58 +15,105 @@
 // Core frequency
 #pragma CLOCK_FREQ 4000000
 
-void UARTWriteByte(unsigned char Byte)
-{
-	// Wait until the Tx line is free
-	while (!pir1.TXIF);
-	// Send data
-	txreg = Byte;
-}
+//--------------------------------------------------------------------------------------------------
+// Private variables
+//--------------------------------------------------------------------------------------------------
+/** The alarm hour in BCD format. */
+static unsigned char Main_Alarm_Hour;
+/** The alarm minutes in BCD format. */
+static unsigned char Main_Alarm_Minutes;
 
 //--------------------------------------------------------------------------------------------------
 // Entry point
 //--------------------------------------------------------------------------------------------------
 void main(void)
 {
-	TRTCClockData data;
-	unsigned char reg;
+	TRTCClockData Clock_Data;
+	unsigned char i;
 
 	// Initialize the modules
 	RTCInitialize();
+	UARTInitialize();
 	
 	// Enable interrupts
 	// TODO
-	
-	// Configure UART pins as inputs
-	trisc.6 = 1;
-	trisc.7 = 1;
-
-	spbrg = 12; // 19200 bit/s baud rate
-	txsta = 0x26; // 8-bit transmission, transmission enabled, high speed
-	rcsta = 0x90; // Reception and serial port module enabled
 
 	portb.7 = 0;
 	portb.6 = 0;
-	trisb = 0x3F;
-
+	trisb.7 = 0;
+	trisb.6 = 0;
+	
 	while (1)
 	{
 		RTC_WAIT_TICK_BEGINNING();
 		
 		portb.7 = !portb.7;
 		
-		RTCGetDateAndTime(&data);
+		// Was the magic number received on the UART ?
+		if (UARTIsByteReceived() && (UARTReadByte() == UART_PROTOCOL_MAGIC_NUMBER))
+		{
+			// Send the magic number to the PC to tell the microcontroller is ready to receive the data
+			UARTWriteByte(UART_PROTOCOL_MAGIC_NUMBER);
+			
+			// Receive the date and time values
+			for (i = 0; i < sizeof(TRTCClockData); i++) Clock_Data.Array[i] = UARTReadByte();
+			
+			// Receive the alarm values
+			Main_Alarm_Hour = UARTReadByte();
+			Main_Alarm_Minutes = UARTReadByte();
+			
+			// Set the new RTC date and time
+			RTCSetDateAndTime(&Clock_Data);
+			
+			// Tell the PC that everything went fine
+			UARTWriteByte(UART_PROTOCOL_MAGIC_NUMBER);
+		}
 		
-		reg = data.Register_Name.Minutes;
-		UARTWriteByte(((reg & 0x70) >> 4) + 48);
-		UARTWriteByte((reg & 0x0F) + 48);
-		UARTWriteByte(':');
+		// TEST
+		{
+			TRTCClockData data;
+			unsigned char reg;
 		
-		reg = data.Register_Name.Seconds;
-		UARTWriteByte(((reg & 0x70) >> 4) + 48);
-		UARTWriteByte((reg & 0x0F) + 48);
-		UARTWriteByte('\r');
-		UARTWriteByte('\n');
+			RTCGetDateAndTime(&data);
+			
+			reg = data.Register_Name.Day_Of_Week;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte(' ');
+			
+			reg = data.Register_Name.Day;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte('.');
+			
+			reg = data.Register_Name.Month;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte('.');
+			
+			UARTWriteByte('2');
+			UARTWriteByte('0');
+			reg = data.Register_Name.Year;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte(' ');
+			
+			reg = data.Register_Name.Hours;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte(':');
+			
+			reg = data.Register_Name.Minutes;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte(':');
+			
+			reg = data.Register_Name.Seconds;
+			UARTWriteByte(((reg & 0x70) >> 4) + 48);
+			UARTWriteByte((reg & 0x0F) + 48);
+			UARTWriteByte('\r');
+			UARTWriteByte('\n');
+		}
 		
 		RTC_WAIT_TICK_END();
 	}
