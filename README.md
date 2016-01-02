@@ -7,7 +7,7 @@ Those and the temperature sampled from a LM35DZ temperature sensor are displayed
 This clock also features an alarm mode which relies on a 85dB buzzer to make the more noise possible.  
 The schematics can be found in the Hardware directory. They were drawn using Cadsoft Eagle 7.5.  
   
-![Main board schematics](https://github.com/RICCIARDI-Adrien/Clock/tree/master/Hardware/Main_Board.png)
+![Main board schematics](https://github.com/RICCIARDI-Adrien/Clock/blob/master/Hardware/Main_Board.png)
 
 ## Software
 The microcontroller firmware source code can be found in the Software/Microcontroller directory. The compiled firmware is provided by the Software/Microcontroller/Release/Clock.hex file. The source code is a Sourceboost 7.30 BoostC project.  
