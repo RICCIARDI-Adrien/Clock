@@ -9,9 +9,9 @@
 // Constants and macros
 //--------------------------------------------------------------------------------------------------
 /** Poll until a new RTC 1Hz tick begins. */
-#define RTC_WAIT_TICK_BEGINNING() while (!portb.1)
+#define RTC_WAIT_TICK_BEGINNING() while (!porta.1)
 /** Poll until the current RTC 1Hz tick ends. */
-#define RTC_WAIT_TICK_END() while (portb.1)
+#define RTC_WAIT_TICK_END() while (porta.1)
 
 //--------------------------------------------------------------------------------------------------
 // Types

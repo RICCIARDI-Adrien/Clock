@@ -81,24 +81,6 @@ inline void RTCWriteRegister(TRTCRegister Register, unsigned char Value)
 	// The minimum bus free time between a STOP and a START must be at least 4.7µs, but the microcontroller is so slow that there is no need to take that into account
 }
 
-// TODO remove if useless
-/** Convert a BCD value to binary.
- * @param Binary_Coded_Decimal_Value The value to convert. First BCD digit is held in bits 7..4, second BCD digit stays in bits 3..0.
- * @return The binary value of the BCD number.
- */
-/*inline unsigned char RTCConvertBinaryCodedDecimalToBinary(unsigned char Binary_Coded_Decimal_Value)
-{
-	unsigned char Tens;
-	
-	// Extract the tens value
-	Tens = (Binary_Coded_Decimal_Value >> 4) & 0x0F;
-	
-	// Multiply it by ten using shifts
-	Tens = (Tens << 8) + (Tens << 2);
-	
-	return Tens + (Binary_Coded_Decimal_Value & 0x0F);
-}*/
-
 //--------------------------------------------------------------------------------------------------
 // Public functions
 //--------------------------------------------------------------------------------------------------
@@ -111,7 +93,7 @@ void RTCInitialize(void)
 	trisc.4 = 1;
 	
 	// Set the pin connected to SWQ/OUT as input
-	trisb.1 = 1;
+	trisa.1 = 1;
 	
 	// Initialize the I2C module at 100KHz
 	sspstat = 0x80; // Disable the slew rate control as requested for 100KHz speed mode, input levels conform to I2C
