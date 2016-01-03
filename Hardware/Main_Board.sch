@@ -7461,7 +7461,7 @@ grid 2.3 mm</description>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
 <part name="Q3" library="transistor-power" deviceset="BD139" device="" value="BD135"/>
 <part name="R7" library="resistor" deviceset="R-EU_" device="0207/12" value="12/0.5W"/>
-<part name="R8" library="resistor" deviceset="R-EU_" device="0207/12" value="100"/>
+<part name="R8" library="resistor" deviceset="R-EU_" device="0207/12" value="1K"/>
 <part name="GND10" library="supply1" deviceset="GND" device=""/>
 <part name="U3" library="LM35DZ" deviceset="LM35DZ" device=""/>
 <part name="P+9" library="supply1" deviceset="+5V" device=""/>
