@@ -11,4 +11,9 @@
 /** Initialize the ADC module and the pin RA0 as analog. All other port A pins are digital. */
 void TemperatureSensorInitialize(void);
 
+/** Get the current temperature converted to centigrade.
+ * @return The current temperature converted to centigrade. The temperature will always be positive.
+ */
+unsigned char TemperatureSensorGetTemperature(void);
+
 #endif

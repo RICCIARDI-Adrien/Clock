@@ -41,6 +41,8 @@ inline void DisplayWrite(unsigned char Byte, unsigned char Is_Data)
 	DISPLAY_SIGNAL_E = 0;
 }
 
+// This polling wait seems to hang the display module
+#if 0
 /** Wait until the display becomes ready for another operation. */
 inline void DisplayWaitForOperationEnd(void)
 {
@@ -65,6 +67,7 @@ inline void DisplayWaitForOperationEnd(void)
 		if (!(Status & 0x80)) return;
 	}
 }
+#endif
 
 //--------------------------------------------------------------------------------------------------
 // Public functions
@@ -87,7 +90,6 @@ void DisplayInitialize(void)
 	portb.4 = 1;
 	DISPLAY_SIGNAL_E = 1;
 	DISPLAY_SIGNAL_E = 0;
-	DISPLAY_SIGNAL_E = 1;
 	delay_ms(1); // Wait at least 37µs
 	
 	// Send Function Set command a second time
@@ -114,10 +116,11 @@ void DisplayInitialize(void)
 void DisplayWriteCharacter(unsigned char Character)
 {
 	DisplayWrite(Character, 1);
-	DisplayWaitForOperationEnd();
+	delay_us(64); // Wait at least 37µs
 }
 
 void DisplaySetCursorLocation(unsigned char Location)
 {
 	DisplayWrite(0x80 | Location, 0);
+	delay_us(64); // Wait at least 37µs
 }
