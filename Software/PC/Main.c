@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 	
 	// Wait for the clock answer
 	while (UARTReadByte() != MAIN_UART_PROTOCOL_MAGIC_NUMBER);
-	printf(" done.\nThe clock is successfully configured. You can unplug the cable.");
+	printf(" done.\nThe clock is successfully configured. You can unplug the cable.\n");
 	
 	return EXIT_SUCCESS;
 }
