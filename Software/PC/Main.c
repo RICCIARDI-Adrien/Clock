@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 	// Send the day of the month
 	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mday));
 	// Send the month (starting from 1 on the RTC)
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mon));
+	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mon + 1));
 	// Send the year (starting from 2000 on the RTC)
 	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_year - 100));
 	// Send alarm hour
