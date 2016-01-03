@@ -3,8 +3,10 @@
  * @author Adrien RICCIARDI
  */
 #include <system.h>
+#include "Display.h"
 #include "Ring.h"
 #include "RTC.h"
+#include "Temperature_Sensor.h"
 #include "UART.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -33,6 +35,10 @@ void interrupt(void)
 }
 
 //--------------------------------------------------------------------------------------------------
+// Private functions
+//--------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------------
 // Entry point
 //--------------------------------------------------------------------------------------------------
 void main(void)
@@ -41,27 +47,23 @@ void main(void)
 	unsigned char i, j = 0;
 
 	// Initialize the modules
+	TemperatureSensorInitialize(); // Must be called before RTCInitialize() as TemperatureSensorInitialize() initializes the port A used by the RTC code too
 	RTCInitialize();
 	UARTInitialize();
 	RingInitialize();
+	DisplayInitialize();
 	
 	// Enable interrupts
 	intcon.PEIE = 1; // Enable peripherals interrupts
 	intcon.GIE = 1; // Enable all interrupts
 
 	// TEST
-	portb.7 = 0;
-	portb.6 = 0;
-	trisb.7 = 0;
-	trisb.6 = 0;
-	
 	RingStart();
+	DisplayBacklightOn();
 	
 	while (1)
 	{
 		RTC_WAIT_TICK_BEGINNING();
-		
-		portb.7 = !portb.7;
 		
 		// Was the magic number received on the UART ?
 		if (UARTIsByteReceived() && (UARTReadByte() == UART_PROTOCOL_MAGIC_NUMBER))
@@ -131,9 +133,11 @@ void main(void)
 		
 		RTC_WAIT_TICK_END();
 		
+		// TEST
 		j++;
-		if (j == 10) RingStop();
+		if (j == 10)
+		{
+			RingStop();
+		}
 	}
-	
-	while (1);
 }
