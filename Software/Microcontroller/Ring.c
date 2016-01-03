@@ -32,6 +32,7 @@ static unsigned char Ring_Tone_Index;
 void RingInitialize(void)
 {
 	// Configure the buzzer pin as output
+	portc.1 = 0; // Avoid ringing the buzzer due to an undefined value in the port register
 	trisc.1 = 0; // Use this pin as it can be configured as PWM if needed
 	
 	// Configure the timer 0 module to trigger an interrupt at 20Hz
