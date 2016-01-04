@@ -3,12 +3,13 @@
  * @author Adrien RICCIARDI
  */
 #include <system.h>
+#include "Button.h"
 #include "Ring.h"
 
 //--------------------------------------------------------------------------------------------------
 // Private constants
 //--------------------------------------------------------------------------------------------------
-/** The timer reload value to get the requested interrupt rate (called Finterrupt below). */
+/** The timer reload value to get the requested 50Hz interrupt rate (called Finterrupt below). */
 #define RING_TIMER_RELOAD_VALUE 60 // Reload_Value = 255 - ((Fosc/4) / (256 * Finterrupt))
 
 //--------------------------------------------------------------------------------------------------
@@ -66,13 +67,18 @@ void RingStop(void)
 
 void RingInterruptHandler(void)
 {
-	// Reload the timer
-	tmr0 = RING_TIMER_RELOAD_VALUE;
-
-	// Play next tone
-	Ring_Tone_Index++;
-	if (Ring_Tone_Index >= sizeof(Ring_Tone)) Ring_Tone_Index = 0;
-	portc.1 = Ring_Tone[Ring_Tone_Index];
+	// Stop the alarm if the alarm button is switched to "disabled"
+	if (!ButtonIsAlarmEnabled()) RingStop();
+	else
+	{
+		// Reload the timer
+		tmr0 = RING_TIMER_RELOAD_VALUE;
+		
+		// Play next tone
+		Ring_Tone_Index++;
+		if (Ring_Tone_Index >= sizeof(Ring_Tone)) Ring_Tone_Index = 0;
+		portc.1 = Ring_Tone[Ring_Tone_Index];
+	}
 	
 	// Clear interrupt flag
 	intcon.T0IF = 0;

@@ -3,6 +3,7 @@
  * @author Adrien RICCIARDI
  */
 #include <system.h>
+#include "Button.h"
 #include "Display.h"
 #include "Ring.h"
 #include "RTC.h"
@@ -44,14 +45,31 @@ static unsigned char *String_Day_Names[] =
 //--------------------------------------------------------------------------------------------------
 void interrupt(void)
 {
+	// Handle the ring interrupt
 	if (RING_HAS_INTERRUPT_FIRED()) RingInterruptHandler();
+	
+	// Handle the snooze button interrupt
+	if (BUTTON_HAS_INTERRUPT_FIRED())
+	{
+		RingStop(); // Stop the alarm in case it was ringing
+		DisplayBacklightOn();
+		
+		// Clear the interrupt flag
+		BUTTON_CLEAR_INTERRUPT_FLAG();
+	}
+	
+	// Handle the display backlight timer
+	if (DISPLAY_HAS_INTERRUPT_FIRED()) DisplayInterruptHandler();
 }
 
 //--------------------------------------------------------------------------------------------------
 // Private functions
 //--------------------------------------------------------------------------------------------------
 /** Convert a one-byte Binary Coded Decimal number to two ASCII characters.
- * */
+ * @param BCD_Number The BCD number to convert.
+ * @param Pointer_Tens_Character On output, contain the binary value of the number's tens.
+ * @param Pointer_Units_Character On output, contain the binary value of the number's units.
+ */
 inline void MainConvertBCDToASCII(unsigned char BCD_Number, unsigned char *Pointer_Tens_Character, unsigned char *Pointer_Units_Character)
 {
 	*Pointer_Tens_Character = (BCD_Number >> 4) + '0';
@@ -72,14 +90,13 @@ void main(void)
 	UARTInitialize();
 	RingInitialize();
 	DisplayInitialize();
+	ButtonInitialize();
+	
+	// TODO : load alarm from RTC
 	
 	// Enable interrupts
 	intcon.PEIE = 1; // Enable peripherals interrupts
 	intcon.GIE = 1; // Enable all interrupts
-
-	// TEST
-	//RingStart();
-	DisplayBacklightOn();
 	
 	while (1)
 	{
@@ -97,6 +114,8 @@ void main(void)
 			// Receive the alarm values
 			Main_Alarm_Hour = UARTReadByte();
 			Main_Alarm_Minutes = UARTReadByte();
+			
+			// TODO : save alarm to RTC
 			
 			// Set the new RTC date and time
 			RTCSetDateAndTime(&Clock_Data);
@@ -166,51 +185,7 @@ void main(void)
 		DisplayWriteCharacter(Tens_Character);
 		DisplayWriteCharacter(Units_Character);
 		
-		// TEST
-		/*{
-			TRTCClockData data;
-			unsigned char reg;
-		
-			RTCGetDateAndTime(&data);
-			
-			reg = data.Register_Name.Day_Of_Week;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte(' ');
-			
-			reg = data.Register_Name.Day;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte('.');
-			
-			reg = data.Register_Name.Month;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte('.');
-			
-			UARTWriteByte('2');
-			UARTWriteByte('0');
-			reg = data.Register_Name.Year;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte(' ');
-			
-			reg = data.Register_Name.Hours;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte(':');
-			
-			reg = data.Register_Name.Minutes;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte(':');
-			
-			reg = data.Register_Name.Seconds;
-			UARTWriteByte(((reg & 0x70) >> 4) + 48);
-			UARTWriteByte((reg & 0x0F) + 48);
-			UARTWriteByte('\r');
-			UARTWriteByte('\n');
-		}*/
+		// TODO : trigger the alarm if the time has come
 		
 		RTC_WAIT_TICK_END();
 	}

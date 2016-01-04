@@ -8,16 +8,22 @@
 #include <system.h>
 
 //--------------------------------------------------------------------------------------------------
+// Constants and macros
+//--------------------------------------------------------------------------------------------------
+/** How many seconds the backlight will remain lighted. */
+#define DISPLAY_BACKLIGHT_ON_DELAY 6
+
+/** Tell whether the display timer interrupt fired or not. */
+#define DISPLAY_HAS_INTERRUPT_FIRED() (pie1.TMR1IE && pir1.TMR1IF)
+
+//--------------------------------------------------------------------------------------------------
 // Functions
 //--------------------------------------------------------------------------------------------------
 /** Initialize the display subsystem. */
 void DisplayInitialize(void);
 
-/** Light the display backlight. */
-#define DisplayBacklightOn() portc.5 = 1 // Force this function to be "inlined"
-
-/** Turn off the display backlight. */
-#define DisplayBacklightOff() portc.5 = 0 // Force this function to be "inlined"
+/** Light the display backlight for DISPLAY_BACKLIGHT_ON_DELAY seconds. */
+void DisplayBacklightOn(void);
 
 /** Write a character at the current cursor location.
  * @parameter Character The character to display.
@@ -28,5 +34,8 @@ void DisplayWriteCharacter(unsigned char Character);
  * @param Location The new cursor location. Line 1 locations are in range [0; 0x0F], line 2 locations are in range [0x40; 0x4F].
  */
 void DisplaySetCursorLocation(unsigned char Location);
+
+/** Handle the backlight timer. */
+void DisplayInterruptHandler(void);
 
 #endif

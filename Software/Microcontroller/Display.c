@@ -15,6 +15,15 @@
 /** The E signal. */
 #define DISPLAY_SIGNAL_E portb.3
 
+/** The timer reload value to get the requested 2Hz interrupt rate (called Finterrupt below). */
+#define DISPLAY_TIMER_RELOAD_VALUE 3036 // Reload_Value = 65536 - (((Fosc/4) / Prescaler)) / Finterrupt) with Prescaler = 8
+
+//--------------------------------------------------------------------------------------------------
+// Private variables
+//--------------------------------------------------------------------------------------------------
+/** Count how many half-seconds the backlight is being lighted. */
+static unsigned char Display_Backlight_Half_Seconds_Counter; // The timer counts at 2Hz
+
 //--------------------------------------------------------------------------------------------------
 // Private functions
 //--------------------------------------------------------------------------------------------------
@@ -111,6 +120,26 @@ void DisplayInitialize(void)
 	// Send Entry Mode Set command
 	DisplayWrite(0x06, 0); // Set cursor moving direction to right, disable display shifting (i.e. scrolling)
 	delay_ms(1); // Wait at least 37µs
+	
+	// Configure timer 1 to be used as the backlight timer
+	t1con = 0x30; // Select a 1:8 prescaler, disable the built-in oscillator circuit, use Fosc/4 as clock source, do not enable the timer
+}
+
+void DisplayBacklightOn(void)
+{
+	// Turn the backlight on
+	portc.5 = 1;
+	
+	// Preload the timer and start it
+	tmr1h = DISPLAY_TIMER_RELOAD_VALUE >> 8;
+	tmr1l = (unsigned char) DISPLAY_TIMER_RELOAD_VALUE;
+	t1con.TMR1ON = 1;
+	
+	// Enable the timer interrupt
+	pie1.TMR1IE = 1;
+	
+	// Start counting elapsed time
+	Display_Backlight_Half_Seconds_Counter = 0;
 }
 
 void DisplayWriteCharacter(unsigned char Character)
@@ -123,4 +152,29 @@ void DisplaySetCursorLocation(unsigned char Location)
 {
 	DisplayWrite(0x80 | Location, 0);
 	delay_us(64); // Wait at least 37µs
+}
+
+void DisplayInterruptHandler(void)
+{
+	Display_Backlight_Half_Seconds_Counter++;
+	if (Display_Backlight_Half_Seconds_Counter >= DISPLAY_BACKLIGHT_ON_DELAY * 2)
+	{
+		// Turn off the display backlight
+		portc.5 = 0;
+		
+		// Stop the timer
+		t1con.TMR1ON = 0;
+		pie1.TMR1IE = 0; // Disable the timer interrupt
+	}
+	else
+	{
+		// Reload the timer value
+		t1con.TMR1ON = 0; // Stop the timer to avoid a glitch when reloading its value
+		tmr1h = DISPLAY_TIMER_RELOAD_VALUE >> 8;
+		tmr1l = (unsigned char) DISPLAY_TIMER_RELOAD_VALUE;
+		t1con.TMR1ON = 1; // Restart the timer
+	}
+	
+	// Clear interrupt flag
+	pir1.TMR1IF = 0;
 }
