@@ -6,8 +6,44 @@
 #include "Display.h"
 
 //--------------------------------------------------------------------------------------------------
-// Private constants
+// Private constants and macros
 //--------------------------------------------------------------------------------------------------
+/** Wait 64탎. */
+// Can't use a scope or the preprocessor will fail
+#define DISPLAY_WAIT_64_MICROSECONDS() \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop \
+	asm nop
+
 /** The R/S signal. */
 #define DISPLAY_SIGNAL_RS portb.2
 /** The R/W signal. */
@@ -145,13 +181,13 @@ void DisplayBacklightOn(void)
 void DisplayWriteCharacter(unsigned char Character)
 {
 	DisplayWrite(Character, 1);
-	delay_us(64); // Wait at least 37탎
+	DISPLAY_WAIT_64_MICROSECONDS(); // Wait at least 37탎
 }
 
 void DisplaySetCursorLocation(unsigned char Location)
 {
 	DisplayWrite(0x80 | Location, 0);
-	delay_us(64); // Wait at least 37탎
+	DISPLAY_WAIT_64_MICROSECONDS(); // Wait at least 37탎
 }
 
 void DisplayInterruptHandler(void)
