@@ -33,6 +33,9 @@
 	pir1.SSPIF = 0; \
 }
 
+/** The RTC RAM starting address. */
+#define RTC_RAM_BASE_ADDRESS 0x08
+
 //--------------------------------------------------------------------------------------------------
 // Private types
 //--------------------------------------------------------------------------------------------------
@@ -48,38 +51,6 @@ typedef enum
 	RTC_REGISTER_YEAR,
 	RTC_REGISTER_CONTROL
 } TRTCRegister;
-
-//--------------------------------------------------------------------------------------------------
-// Private functions
-//--------------------------------------------------------------------------------------------------
-/** Read a 8-bit register from the RTC.
- * @param Register The register to read.
- * @param Value The value to set.
- */
-inline void RTCWriteRegister(TRTCRegister Register, unsigned char Value)
-{
-	// Send an I2C START
-	RTC_I2C_SEND_START();
-	RTC_I2C_WAIT_OPERATION_END();
-	
-	// Send the RTC I2C address
-	sspbuf = RTC_I2C_ADDRESS | RTC_I2C_ADDRESS_READ_WRITE_BIT_WRITE;
-	RTC_I2C_WAIT_OPERATION_END();
-	
-	// Send register address
-	sspbuf = Register;
-	RTC_I2C_WAIT_OPERATION_END();
-	
-	// Send register value
-	sspbuf = Value;
-	RTC_I2C_WAIT_OPERATION_END();
-	
-	// Send an I2C STOP
-	RTC_I2C_SEND_STOP();
-	RTC_I2C_WAIT_OPERATION_END();
-	
-	// The minimum bus free time between a STOP and a START must be at least 4.7µs, but the microcontroller is so slow that there is no need to take that into account
-}
 
 //--------------------------------------------------------------------------------------------------
 // Public functions
@@ -103,12 +74,93 @@ void RTCInitialize(void)
 	
 	// On the first RTC boot, the Clock Halt bit will be set and will prevent the clock from running, so clear this bit if needed
 	RTCGetDateAndTime(&Clock_Data);
-	if (Clock_Data.Register_Name.Seconds & 0x80) RTCWriteRegister(RTC_REGISTER_SECONDS, 0); // No need to set a valid seconds count as the RTC time and date are not configured
+	if (Clock_Data.Register_Name.Seconds & 0x80) RTCWriteByte(RTC_REGISTER_SECONDS, 0); // No need to set a valid seconds count as the RTC time and date are not configured
 	
 	// Configure the RTC to generate an interrupt each second
-	RTCWriteRegister(RTC_REGISTER_CONTROL, 0x90);
+	RTCWriteByte(RTC_REGISTER_CONTROL, 0x90);
 }
 
+void RTCSetReadAddress(unsigned char Address)
+{
+	// Do nothing if the address is bad
+	if (Address >= RTC_MEMORY_SIZE) return;
+	
+	// Set the byte address to read doing a fake write
+	// Send an I2C START
+	RTC_I2C_SEND_START();
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send the RTC I2C address
+	sspbuf = RTC_I2C_ADDRESS | RTC_I2C_ADDRESS_READ_WRITE_BIT_WRITE;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send the byte address
+	sspbuf = Address;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send an I2C STOP
+	RTC_I2C_SEND_STOP();
+	RTC_I2C_WAIT_OPERATION_END();
+}
+
+unsigned char RTCReadByte(void)
+{
+	unsigned char Byte;
+	
+	// Send an I2C START
+	RTC_I2C_SEND_START();
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send the RTC I2C address
+	sspbuf = RTC_I2C_ADDRESS | RTC_I2C_ADDRESS_READ_WRITE_BIT_READ;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Receive the byte from the device
+	sspcon2.RCEN = 1;
+	RTC_I2C_WAIT_OPERATION_END();
+	Byte = sspbuf;
+	
+	// Send an I2C NACK to the device
+	sspcon2.ACKDT = 1; // Send an I2C NACK indicating that no more byte will be read
+	sspcon2.ACKEN = 1;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send an I2C STOP
+	RTC_I2C_SEND_STOP();
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	return Byte;
+}
+
+void RTCWriteByte(unsigned char Address, unsigned char Byte)
+{
+	// Do nothing if the address is bad
+	if (Address >= RTC_MEMORY_SIZE) return;
+
+	// Send an I2C START
+	RTC_I2C_SEND_START();
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send the RTC I2C address
+	sspbuf = RTC_I2C_ADDRESS | RTC_I2C_ADDRESS_READ_WRITE_BIT_WRITE;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send the byte address
+	sspbuf = Address;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send the byte value
+	sspbuf = Byte;
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// Send an I2C STOP
+	RTC_I2C_SEND_STOP();
+	RTC_I2C_WAIT_OPERATION_END();
+	
+	// The minimum bus free time between a STOP and a START must be at least 4.7µs, but the microcontroller is so slow that there is no need to take that into account
+}
+
+// This function does not use the utility functions to access the RTC in order to be as fast as possible
 void RTCGetDateAndTime(TRTCClockData *Pointer_Clock_Data)
 {
 	unsigned char i;
@@ -149,7 +201,7 @@ void RTCGetDateAndTime(TRTCClockData *Pointer_Clock_Data)
 		Pointer_Clock_Data->Array[i] = sspbuf; // It is possible to store all field in the same way because bits CH and 12/24 are both 0)
 	
 		// Send an I2C ACK or NACK to the device
-		if (i == sizeof(TRTCClockData) - 1) sspcon2.ACKDT = 1; // Send an NACK on the last read
+		if (i == sizeof(TRTCClockData) - 1) sspcon2.ACKDT = 1; // Send a NACK on the last read
 		sspcon2.ACKEN = 1;
 		RTC_I2C_WAIT_OPERATION_END();
 	}
@@ -162,16 +214,16 @@ void RTCGetDateAndTime(TRTCClockData *Pointer_Clock_Data)
 void RTCSetDateAndTime(TRTCClockData *Pointer_Clock_Data)
 {
 	// Stop the clock to prevent it updating the time and date in the same time they are set
-	RTCWriteRegister(RTC_REGISTER_SECONDS, 0x80);
+	RTCWriteByte(RTC_REGISTER_SECONDS, 0x80);
 	
 	// Configure all registers
-	RTCWriteRegister(RTC_REGISTER_MINUTES, Pointer_Clock_Data->Register_Name.Minutes);
-	RTCWriteRegister(RTC_REGISTER_HOURS, Pointer_Clock_Data->Register_Name.Hours);
-	RTCWriteRegister(RTC_REGISTER_DAY, Pointer_Clock_Data->Register_Name.Day_Of_Week);
-	RTCWriteRegister(RTC_REGISTER_DATE, Pointer_Clock_Data->Register_Name.Day);
-	RTCWriteRegister(RTC_REGISTER_MONTH, Pointer_Clock_Data->Register_Name.Month);
-	RTCWriteRegister(RTC_REGISTER_YEAR, Pointer_Clock_Data->Register_Name.Year);
+	RTCWriteByte(RTC_REGISTER_MINUTES, Pointer_Clock_Data->Register_Name.Minutes);
+	RTCWriteByte(RTC_REGISTER_HOURS, Pointer_Clock_Data->Register_Name.Hours);
+	RTCWriteByte(RTC_REGISTER_DAY, Pointer_Clock_Data->Register_Name.Day_Of_Week);
+	RTCWriteByte(RTC_REGISTER_DATE, Pointer_Clock_Data->Register_Name.Day);
+	RTCWriteByte(RTC_REGISTER_MONTH, Pointer_Clock_Data->Register_Name.Month);
+	RTCWriteByte(RTC_REGISTER_YEAR, Pointer_Clock_Data->Register_Name.Year);
 	
 	// Set the SECONDS register and re-enable the clock in the same time
-	RTCWriteRegister(RTC_REGISTER_SECONDS, Pointer_Clock_Data->Register_Name.Seconds);
+	RTCWriteByte(RTC_REGISTER_SECONDS, Pointer_Clock_Data->Register_Name.Seconds);
 }

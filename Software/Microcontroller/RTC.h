@@ -13,6 +13,9 @@
 /** Poll until the current RTC 1Hz tick ends. */
 #define RTC_WAIT_TICK_END() while (porta.1)
 
+/** The RTC whole memory size in bytes. */
+#define RTC_MEMORY_SIZE 64
+
 //--------------------------------------------------------------------------------------------------
 // Types
 //--------------------------------------------------------------------------------------------------
@@ -40,6 +43,22 @@ typedef union
 //--------------------------------------------------------------------------------------------------
 /** Initialize the I2C module used to communicate with the RTC and configure the RTC to trigger an interrupt each second. */
 void RTCInitialize(void);
+
+/** Set the RTC internal address counter to allow reading from that address.
+ * @param Address The address to set, in range [0; RTC_MEMORY_SIZE - 1]. Nothing is done if the provided address is bad.
+ */
+void RTCSetReadAddress(unsigned char Address);
+
+/** Read a byte at the current address from the RTC memory. The address will automatically wrap around if it reaches RTC_MEMORY_SIZE.
+ * @return The byte value.
+ */
+unsigned char RTCReadByte(void);
+
+/** Write a byte of data to the RTC memory.
+ * @param Address The byte address, in range [0; RTC_MEMORY_SIZE - 1]. No byte is written if the provided address is out of range.
+ * @param Byte The byte to write.
+ */
+void RTCWriteByte(unsigned char Address, unsigned char Byte);
 
 /** Get the current date and time values.
  * @param Pointer_Clock_Data On output, will contain the current date and time in BCD format.

@@ -20,13 +20,14 @@
 #pragma CLOCK_FREQ 4000000
 
 //--------------------------------------------------------------------------------------------------
+// Private constants
+//--------------------------------------------------------------------------------------------------
+/** The alarm base address in RTC RAM. */
+#define MAIN_ALARM_BASE_ADDRESS 0x08
+
+//--------------------------------------------------------------------------------------------------
 // Private variables
 //--------------------------------------------------------------------------------------------------
-/** The alarm hour in BCD format. */
-static unsigned char Main_Alarm_Hour;
-/** The alarm minutes in BCD format. */
-static unsigned char Main_Alarm_Minutes;
-
 /** The string corresponding to each day index. */
 static unsigned char *String_Day_Names[] =
 {
@@ -82,7 +83,7 @@ inline void MainConvertBCDToASCII(unsigned char BCD_Number, unsigned char *Point
 void main(void)
 {
 	TRTCClockData Clock_Data;
-	unsigned char i, Tens_Character, Units_Character, Temperature;
+	unsigned char i, Tens_Character, Units_Character, Temperature, Alarm_Hour, Alarm_Minutes;
 
 	// Initialize the modules
 	TemperatureSensorInitialize(); // Must be called before RTCInitialize() as TemperatureSensorInitialize() initializes the port A used by the RTC code too
@@ -92,11 +93,14 @@ void main(void)
 	DisplayInitialize();
 	ButtonInitialize();
 	
-	// TODO : load alarm from RTC
-	
 	// Enable interrupts
 	intcon.PEIE = 1; // Enable peripherals interrupts
 	intcon.GIE = 1; // Enable all interrupts
+	
+	// Load the alarm stored in the RTC RAM, so it can survive a power loss
+	RTCSetReadAddress(MAIN_ALARM_BASE_ADDRESS);
+	Alarm_Hour = RTCReadByte();
+	Alarm_Minutes = RTCReadByte();
 	
 	while (1)
 	{
@@ -112,13 +116,15 @@ void main(void)
 			for (i = 0; i < sizeof(TRTCClockData); i++) Clock_Data.Array[i] = UARTReadByte();
 			
 			// Receive the alarm values
-			Main_Alarm_Hour = UARTReadByte();
-			Main_Alarm_Minutes = UARTReadByte();
-			
-			// TODO : save alarm to RTC
+			Alarm_Hour = UARTReadByte();
+			Alarm_Minutes = UARTReadByte();
 			
 			// Set the new RTC date and time
 			RTCSetDateAndTime(&Clock_Data);
+			
+			// Save the alarm to the RTC RAM
+			RTCWriteByte(MAIN_ALARM_BASE_ADDRESS, Alarm_Hour);
+			RTCWriteByte(MAIN_ALARM_BASE_ADDRESS + 1, Alarm_Minutes);
 			
 			// Tell the PC that everything went fine
 			UARTWriteByte(UART_PROTOCOL_MAGIC_NUMBER);
@@ -185,7 +191,8 @@ void main(void)
 		DisplayWriteCharacter(Tens_Character);
 		DisplayWriteCharacter(Units_Character);
 		
-		// TODO : trigger the alarm if the time has come
+		// Is it time to ring ?
+		if (ButtonIsAlarmEnabled() && (Clock_Data.Register_Name.Hours == Alarm_Hour) && (Clock_Data.Register_Name.Minutes == Alarm_Minutes) && (Clock_Data.Register_Name.Seconds == 0x00)) RingStart();
 		
 		RTC_WAIT_TICK_END();
 	}
