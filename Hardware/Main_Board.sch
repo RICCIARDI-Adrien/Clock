@@ -7470,6 +7470,7 @@ grid 2.3 mm</description>
 <part name="R9" library="resistor" deviceset="R-EU_" device="0207/12" value="10K"/>
 <part name="P+10" library="supply1" deviceset="+5V" device=""/>
 <part name="JP3" library="pinhead" deviceset="PINHD-1X8" device="" value="DISPLAY_COMMAND"/>
+<part name="R10" library="resistor" deviceset="R-EU_" device="0207/12" value="2.2K"/>
 </parts>
 <sheets>
 <sheet>
@@ -7539,6 +7540,7 @@ grid 2.3 mm</description>
 <attribute name="NAME" x="-16.51" y="53.975" size="1.778" layer="95"/>
 <attribute name="VALUE" x="-31.75" y="27.94" size="1.778" layer="96"/>
 </instance>
+<instance part="R10" gate="G$1" x="106.68" y="91.44" rot="R270"/>
 </instances>
 <busses>
 </busses>
@@ -7928,10 +7930,17 @@ grid 2.3 mm</description>
 <net name="N$27" class="0">
 <segment>
 <wire x1="86.36" y1="60.96" x2="106.68" y2="60.96" width="0.1524" layer="91"/>
-<wire x1="106.68" y1="60.96" x2="106.68" y2="119.38" width="0.1524" layer="91"/>
+<wire x1="106.68" y1="60.96" x2="106.68" y2="86.36" width="0.1524" layer="91"/>
+<pinref part="U2" gate="A" pin="RA0/AN0"/>
+<pinref part="R10" gate="G$1" pin="2"/>
+</segment>
+</net>
+<net name="N$28" class="0">
+<segment>
 <pinref part="U3" gate="A" pin="VOUT"/>
 <wire x1="106.68" y1="119.38" x2="104.14" y2="119.38" width="0.1524" layer="91"/>
-<pinref part="U2" gate="A" pin="RA0/AN0"/>
+<wire x1="106.68" y1="96.52" x2="106.68" y2="119.38" width="0.1524" layer="91"/>
+<pinref part="R10" gate="G$1" pin="1"/>
 </segment>
 </net>
 </nets>
