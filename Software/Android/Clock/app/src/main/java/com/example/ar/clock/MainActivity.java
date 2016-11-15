@@ -1,8 +1,10 @@
 package com.example.ar.clock;
 
+import android.content.Context;
 import android.content.DialogInterface;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -11,8 +13,12 @@ import android.widget.TimePicker;
 
 import com.felhr.usbserial.UsbSerialDevice;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class MainActivity extends AppCompatActivity
 {
+    /** The time picker user interface object. */
     private TimePicker _timePicker;
 
     /** Display a simple dialog window waiting for the user to hit the "ok" button.
@@ -38,6 +44,34 @@ public class MainActivity extends AppCompatActivity
         dialog.show();
     }
 
+    /** Probe the USB bus to find a working serial cable
+     * @return The first serial cable found.
+     */
+    private UsbSerialDevice findSerialDevice()
+    {
+        // Retrieve all connected USB devices
+        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        HashMap<String, UsbDevice> usbDevicesMap = usbManager.getDeviceList();
+        if (usbDevicesMap.isEmpty()) return null;
+
+        // Is one of this devices a compatible serial cable ?
+        UsbDeviceConnection usbDeviceConnection;
+        for(Map.Entry<String, UsbDevice> usbDevicesMapEntry : usbDevicesMap.entrySet())
+        {
+            UsbDevice usbDevice = usbDevicesMapEntry.getValue();
+
+            // Connect to the device
+            usbDeviceConnection = usbManager.openDevice(usbDevice);
+
+            // Is it a compatible serial cable ?
+            UsbSerialDevice usbSerialDevice = UsbSerialDevice.createUsbSerialDevice(usbDevice, usbDeviceConnection);
+            if (usbSerialDevice != null) return usbSerialDevice;
+        }
+
+        // No compatible device was found
+        return null;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -55,12 +89,14 @@ public class MainActivity extends AppCompatActivity
     public void buttonClick(View view)
     {
         // Try to connect to the serial cable
-        /*UsbDevice usbDevice;
-        UsbDeviceConnection usbDeviceConnection;
-        UsbSerialDevice usbSerialDevice = UsbSerialDevice.createUsbSerialDevice(usbDevice, usbDeviceConnection);*/
+        UsbSerialDevice serialDevice = findSerialDevice();
+        if (serialDevice == null)
+        {
+            displayMessage("Error", "No compatible serial cable was detected.");
+            return;
+        }
 
         // Get alarm time
         displayMessage("bouh", "test");
     }
-
 }
