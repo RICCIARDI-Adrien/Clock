@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity
     /** The permission we are waiting for. */
     private final String _PERMISSION_USB_ACCESS = "com.android.example.USB_PERMISSION";
     /** Tell if the serial cable can be configured and accessed by the app or not. */
-    private boolean _isSerialDeviceUsable;
+    private boolean _isUsbDeviceAccessPermissionGranted;
 
     /** Display a simple dialog window waiting for the user to hit the "ok" button.
      * @param title The dialog title.
@@ -65,6 +65,24 @@ public class MainActivity extends AppCompatActivity
         dialog.show();
     }
 
+    /** Receive the USB permission access result. */
+    private final BroadcastReceiver _usbDeviceBroadcastReceiver = new BroadcastReceiver()
+    {
+        public void onReceive(Context context, Intent intent)
+        {
+            String action = intent.getAction();
+            if (action.equals(_PERMISSION_USB_ACCESS))
+            {
+                synchronized (this)
+                {
+                    UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if ((intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) && (device != null)) _isUsbDeviceAccessPermissionGranted = true;
+                    else _isUsbDeviceAccessPermissionGranted = false;
+                }
+            }
+        }
+    };
+
     /** Probe the USB bus to find a working serial cable
      * @return 0 if the serial device was successfully found,
      * @return -1 if no compatible device was found.
@@ -78,9 +96,14 @@ public class MainActivity extends AppCompatActivity
 
         // Is one of this devices a compatible serial cable ?
         UsbDeviceConnection usbDeviceConnection;
+        PendingIntent permissionPendingIntent = PendingIntent.getBroadcast(this, 0, new Intent(_PERMISSION_USB_ACCESS), 0);
         for(Map.Entry<String, UsbDevice> usbDevicesMapEntry : usbDevicesMap.entrySet())
         {
             _usbDevice = usbDevicesMapEntry.getValue();
+
+            // Ask permission to access to the device
+            usbManager.requestPermission(_usbDevice, permissionPendingIntent);
+            if (!_isUsbDeviceAccessPermissionGranted) continue;
 
             // Connect to the device
             usbDeviceConnection = usbManager.openDevice(_usbDevice);
@@ -94,36 +117,12 @@ public class MainActivity extends AppCompatActivity
         return -1;
     }
 
-    /** Receive the USB permission access result. */
-    private final BroadcastReceiver _usbDeviceBroadcastReceiver = new BroadcastReceiver()
-    {
-        public void onReceive(Context context, Intent intent)
-        {
-            String action = intent.getAction();
-            if (action.equals(_PERMISSION_USB_ACCESS))
-            {
-                synchronized (this)
-                {
-                    UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if ((intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) && (device != null)) _isSerialDeviceUsable = true;
-                    else _isSerialDeviceUsable = false;
-                }
-            }
-        }
-    };
-
     /** Set the UART communication baud rate, stop bits amount...
      * @return 0 if the serial device was successfully configured,
      * @return -1 if an error occurred.
      */
     private int configureSerialDevice()
     {
-        // Ask the permission to access to the device
-        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        PendingIntent permissionPendingIntent = PendingIntent.getBroadcast(this, 0, new Intent(_PERMISSION_USB_ACCESS), 0);
-        usbManager.requestPermission(_usbDevice, permissionPendingIntent);
-        if (!_isSerialDeviceUsable) return -1;
-
         // Try to gain access to the cable
         if (!_usbSerialDevice.syncOpen()) return -1;
 
