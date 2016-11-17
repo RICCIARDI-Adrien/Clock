@@ -18,6 +18,7 @@ import android.widget.TimePicker;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,8 +39,8 @@ public class MainActivity extends AppCompatActivity
 
     /** The permission we are waiting for. */
     private final String _PERMISSION_USB_ACCESS = "com.android.example.USB_PERMISSION";
-    /** Tell if the permission has been granted or not. */
-    private boolean _isDeviceAccessPermissionGranted = false;
+    /** Tell if the serial cable can be configured and accessed by the app or not. */
+    private boolean _isSerialDeviceUsable;
 
     /** Display a simple dialog window waiting for the user to hit the "ok" button.
      * @param title The dialog title.
@@ -104,7 +105,8 @@ public class MainActivity extends AppCompatActivity
                 synchronized (this)
                 {
                     UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if ((intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) && (device != null)) _isDeviceAccessPermissionGranted = true;
+                    if ((intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) && (device != null)) _isSerialDeviceUsable = true;
+                    else _isSerialDeviceUsable = false;
                 }
             }
         }
@@ -119,12 +121,10 @@ public class MainActivity extends AppCompatActivity
         // Ask the permission to access to the device
         UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         PendingIntent permissionPendingIntent = PendingIntent.getBroadcast(this, 0, new Intent(_PERMISSION_USB_ACCESS), 0);
-        IntentFilter filter = new IntentFilter(_PERMISSION_USB_ACCESS);
-        registerReceiver(_usbDeviceBroadcastReceiver, filter);
         usbManager.requestPermission(_usbDevice, permissionPendingIntent);
-        if (!_isDeviceAccessPermissionGranted) return -1;
+        if (!_isSerialDeviceUsable) return -1;
 
-        // Try to get access to the cable
+        // Try to gain access to the cable
         if (!_usbSerialDevice.syncOpen()) return -1;
 
         // Set communication parameters
@@ -148,6 +148,23 @@ public class MainActivity extends AppCompatActivity
 
         // Try to send a byte
         if (_usbSerialDevice.syncWrite(dataBuffer, _COMMUNICATION_PROTOCOL_TIMEOUT) != 1) displayMessage("Error", "Failed to send a byte of data.");
+    }
+
+    /** Convert a byte to a couple of Binary Coded Decimal values and transmit it over the UART. The byte value must be in range 0 to 99.
+     * @param data The value to send.
+     */
+    private void sendBCDValue(int data)
+    {
+        int tens, units;
+        byte bcdData;
+
+        // Convert the binary data to Binary Coded Decimal
+        tens = data / 10;
+        units = data - (tens * 10);
+        bcdData = (byte) ((tens << 4) | units);
+
+        // Transmit the converted data
+        sendByte(bcdData);
     }
 
     /** Wait for a byte to be received from the UART.
@@ -174,6 +191,16 @@ public class MainActivity extends AppCompatActivity
 
         // Force time picker to be in 24 hours mode
         _timePicker.setIs24HourView(true);
+
+        // Register the callback object called when the USB access permission has been granted or denied by the user
+        IntentFilter filter = new IntentFilter(_PERMISSION_USB_ACCESS);
+        registerReceiver(_usbDeviceBroadcastReceiver, filter);
+    }
+
+    @Override
+    protected void onDestroy()
+    {
+        unregisterReceiver(_usbDeviceBroadcastReceiver);
     }
 
     /** Called when the button is pressed. */
@@ -202,10 +229,29 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        // Send time and date now that all time consuming operations are done
+        Calendar calendar = Calendar.getInstance();
+        sendBCDValue(calendar.get(Calendar.SECOND));
+        sendBCDValue(calendar.get(Calendar.MINUTE));
+        sendBCDValue(calendar.get(Calendar.HOUR_OF_DAY));
+        sendBCDValue(calendar.get(Calendar.DAY_OF_WEEK));
+        sendBCDValue(calendar.get(Calendar.DAY_OF_MONTH));
+        sendBCDValue(calendar.get(Calendar.MONTH) + 1); // January starts from 0
+        sendBCDValue(calendar.get(Calendar.YEAR) - 2000); // RTC year starts from 2000
+
         // Get alarm time
+        sendBCDValue(_timePicker.getCurrentHour());
+        sendBCDValue(_timePicker.getCurrentMinute());
 
+        // Wait for the clock answer
+        if (receiveByte() != _COMMUNICATION_PROTOCOL_MAGIC_NUMBER)
+        {
+            displayMessage("Error", "Clock configuration failed.");
+            _usbSerialDevice.syncClose();
+            return;
+        }
 
-        _usbSerialDevice.syncClose();
         displayMessage("Information", "Time, date and alarm were successfully set.");
+        _usbSerialDevice.syncClose();
     }
 }
