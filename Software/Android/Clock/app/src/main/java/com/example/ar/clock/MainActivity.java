@@ -1,7 +1,11 @@
 package com.example.ar.clock;
 
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -12,6 +16,7 @@ import android.view.View;
 import android.widget.TimePicker;
 
 import com.felhr.usbserial.UsbSerialDevice;
+import com.felhr.usbserial.UsbSerialInterface;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +25,21 @@ public class MainActivity extends AppCompatActivity
 {
     /** The time picker user interface object. */
     private TimePicker _timePicker;
+
+    /** The USB device corresponding to the USB cable. */
+    private UsbDevice _usbDevice;
+    /** The serial cable USB device. */
+    private UsbSerialDevice _usbSerialDevice;
+
+    /** The UART protocol magic number (a value that could hardly be randomly generated on the bus). */
+    private final byte _COMMUNICATION_PROTOCOL_MAGIC_NUMBER = (byte) 0xA5;
+    /** An UART transmission or reception timeout in milliseconds. */
+    private final int _COMMUNICATION_PROTOCOL_TIMEOUT = 5000;
+
+    /** The permission we are waiting for. */
+    private final String _PERMISSION_USB_ACCESS = "com.android.example.USB_PERMISSION";
+    /** Tell if the permission has been granted or not. */
+    private boolean _isDeviceAccessPermissionGranted = false;
 
     /** Display a simple dialog window waiting for the user to hit the "ok" button.
      * @param title The dialog title.
@@ -45,31 +65,102 @@ public class MainActivity extends AppCompatActivity
     }
 
     /** Probe the USB bus to find a working serial cable
-     * @return The first serial cable found.
+     * @return 0 if the serial device was successfully found,
+     * @return -1 if no compatible device was found.
      */
-    private UsbSerialDevice findSerialDevice()
+    private int findSerialDevice()
     {
         // Retrieve all connected USB devices
         UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         HashMap<String, UsbDevice> usbDevicesMap = usbManager.getDeviceList();
-        if (usbDevicesMap.isEmpty()) return null;
+        if (usbDevicesMap.isEmpty()) return -1;
 
         // Is one of this devices a compatible serial cable ?
         UsbDeviceConnection usbDeviceConnection;
         for(Map.Entry<String, UsbDevice> usbDevicesMapEntry : usbDevicesMap.entrySet())
         {
-            UsbDevice usbDevice = usbDevicesMapEntry.getValue();
+            _usbDevice = usbDevicesMapEntry.getValue();
 
             // Connect to the device
-            usbDeviceConnection = usbManager.openDevice(usbDevice);
+            usbDeviceConnection = usbManager.openDevice(_usbDevice);
 
             // Is it a compatible serial cable ?
-            UsbSerialDevice usbSerialDevice = UsbSerialDevice.createUsbSerialDevice(usbDevice, usbDeviceConnection);
-            if (usbSerialDevice != null) return usbSerialDevice;
+            _usbSerialDevice = UsbSerialDevice.createUsbSerialDevice(_usbDevice, usbDeviceConnection);
+            if (_usbSerialDevice != null) return 0;
         }
 
         // No compatible device was found
-        return null;
+        return -1;
+    }
+
+    /** Receive the USB permission access result. */
+    private final BroadcastReceiver _usbDeviceBroadcastReceiver = new BroadcastReceiver()
+    {
+        public void onReceive(Context context, Intent intent)
+        {
+            String action = intent.getAction();
+            if (action.equals(_PERMISSION_USB_ACCESS))
+            {
+                synchronized (this)
+                {
+                    UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if ((intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) && (device != null)) _isDeviceAccessPermissionGranted = true;
+                }
+            }
+        }
+    };
+
+    /** Set the UART communication baud rate, stop bits amount...
+     * @return 0 if the serial device was successfully configured,
+     * @return -1 if an error occurred.
+     */
+    private int configureSerialDevice()
+    {
+        // Ask the permission to access to the device
+        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        PendingIntent permissionPendingIntent = PendingIntent.getBroadcast(this, 0, new Intent(_PERMISSION_USB_ACCESS), 0);
+        IntentFilter filter = new IntentFilter(_PERMISSION_USB_ACCESS);
+        registerReceiver(_usbDeviceBroadcastReceiver, filter);
+        usbManager.requestPermission(_usbDevice, permissionPendingIntent);
+        if (!_isDeviceAccessPermissionGranted) return -1;
+
+        // Try to get access to the cable
+        if (!_usbSerialDevice.syncOpen()) return -1;
+
+        // Set communication parameters
+        _usbSerialDevice.setBaudRate(19200);
+        _usbSerialDevice.setDataBits(UsbSerialInterface.DATA_BITS_8);
+        _usbSerialDevice.setStopBits(UsbSerialInterface.STOP_BITS_1);
+        _usbSerialDevice.setParity(UsbSerialInterface.PARITY_NONE);
+        _usbSerialDevice.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
+
+        return 0;
+    }
+
+    /** Write a byte of data on the UART.
+     * @param data The byte to send.
+     */
+    private void sendByte(byte data)
+    {
+        // Prepare the buffer to send
+        byte dataBuffer[] = new byte[1];
+        dataBuffer[0] = data;
+
+        // Try to send a byte
+        if (_usbSerialDevice.syncWrite(dataBuffer, _COMMUNICATION_PROTOCOL_TIMEOUT) != 1) displayMessage("Error", "Failed to send a byte of data.");
+    }
+
+    /** Wait for a byte to be received from the UART.
+     * @return The received byte (an error message is displayed if the timeout fired).
+     */
+    private byte receiveByte()
+    {
+        byte dataBuffer[] = new byte[1];
+
+        // Try to receive a byte
+        if (_usbSerialDevice.syncRead(dataBuffer, _COMMUNICATION_PROTOCOL_TIMEOUT) != 1) displayMessage("Error", "Failed to receive a byte of data.");
+
+        return dataBuffer[0];
     }
 
     @Override
@@ -89,14 +180,32 @@ public class MainActivity extends AppCompatActivity
     public void buttonClick(View view)
     {
         // Try to connect to the serial cable
-        UsbSerialDevice serialDevice = findSerialDevice();
-        if (serialDevice == null)
+        if (findSerialDevice() != 0)
         {
             displayMessage("Error", "No compatible serial cable was detected.");
             return;
         }
 
+        // Set the serial communication settings
+        if (configureSerialDevice() != 0)
+        {
+            displayMessage("Error", "Failed to configure the serial communication settings.");
+            return;
+        }
+
+        // Connect to the clock
+        sendByte(_COMMUNICATION_PROTOCOL_MAGIC_NUMBER);
+        if (receiveByte() != _COMMUNICATION_PROTOCOL_MAGIC_NUMBER)
+        {
+            displayMessage("Error", "Failed to connect to the clock.");
+            _usbSerialDevice.syncClose();
+            return;
+        }
+
         // Get alarm time
-        displayMessage("bouh", "test");
+
+
+        _usbSerialDevice.syncClose();
+        displayMessage("Information", "Time, date and alarm were successfully set.");
     }
 }
