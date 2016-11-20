@@ -39,8 +39,6 @@ public class MainActivity extends AppCompatActivity
 
     /** The permission we are waiting for. */
     private final String _PERMISSION_USB_ACCESS = "com.android.example.USB_PERMISSION";
-    /** Tell if the serial cable can be configured and accessed by the app or not. */
-    private boolean _isUsbDeviceAccessPermissionGranted;
 
     /** Display a simple dialog window waiting for the user to hit the "ok" button.
      * @param title The dialog title.
@@ -71,19 +69,11 @@ public class MainActivity extends AppCompatActivity
         public void onReceive(Context context, Intent intent)
         {
             String action = intent.getAction();
-            if (action.equals(_PERMISSION_USB_ACCESS))
-            {
-                synchronized (this)
-                {
-                    UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if ((intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) && (device != null)) _isUsbDeviceAccessPermissionGranted = true;
-                    else _isUsbDeviceAccessPermissionGranted = false;
-                }
-            }
+            if (action.equals(_PERMISSION_USB_ACCESS)) {}
         }
     };
 
-    /** Probe the USB bus to find a working serial cable
+    /** Probe the USB bus to find a working serial cable.
      * @return 0 if the serial device was successfully found,
      * @return -1 if no compatible device was found.
      */
@@ -101,9 +91,13 @@ public class MainActivity extends AppCompatActivity
         {
             _usbDevice = usbDevicesMapEntry.getValue();
 
-            // Ask permission to access to the device
-            usbManager.requestPermission(_usbDevice, permissionPendingIntent);
-            if (!_isUsbDeviceAccessPermissionGranted) continue;
+            // Can the app access to the device ?
+            if (!usbManager.hasPermission(_usbDevice))
+            {
+                // Ask permission to access to the device
+                usbManager.requestPermission(_usbDevice, permissionPendingIntent);
+                if (!usbManager.hasPermission(_usbDevice)) continue;
+            }
 
             // Connect to the device
             usbDeviceConnection = usbManager.openDevice(_usbDevice);
