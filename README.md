@@ -16,4 +16,4 @@ An Android application (working from Android 4.0.3 to latest Android version) is
 
 ## Releases
 * Microcontroller firmware (Intel .hex file) : [Clock.hex](https://github.com/RICCIARDI-Adrien/Clock/blob/master/Software/Microcontroller/Release/Clock.hex)
-* Android application (.apk file) : [app-release.apk](https://github.com/RICCIARDI-Adrien/Clock/blob/master/Software/Android/Clock/app-release.apk)
+* Android application (.apk file) : [app-release.apk](https://github.com/RICCIARDI-Adrien/Clock/blob/master/Software/Android/Clock/app/app-release.apk)
