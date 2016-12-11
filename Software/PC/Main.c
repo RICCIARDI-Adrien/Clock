@@ -3,11 +3,11 @@
  * @author Adrien RICCIARDI
  */
 #include <errno.h>
+#include <Serial_Port.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "UART.h"
 
 //-------------------------------------------------------------------------------------------------
 // Private constants
@@ -16,12 +16,18 @@
 #define MAIN_UART_PROTOCOL_MAGIC_NUMBER 0xA5
 
 //-------------------------------------------------------------------------------------------------
+// Private variables
+//-------------------------------------------------------------------------------------------------
+/** The serial port identifier. */
+static TSerialPortID Main_Serial_Port_ID;
+
+//-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
 /** Close the serial port on program termination. */
 static void MainExitCloseSerialPort(void)
 {
-	UARTClose();
+	SerialPortClose(Main_Serial_Port_ID);
 }
 
 /** Convert a 2-digit binary number to Binary Coded Decimal.
@@ -83,7 +89,7 @@ int main(int argc, char *argv[])
 	}
 	
 	// Try to open the serial port
-	if (UARTOpen(String_Serial_Port, 19200) != 0)
+	if (SerialPortOpen(String_Serial_Port, 19200, &Main_Serial_Port_ID) != 0)
 	{
 		printf("Error : failed to open the serial port '%s'.\n", String_Serial_Port);
 		return EXIT_FAILURE;
@@ -94,9 +100,9 @@ int main(int argc, char *argv[])
 	// Send the magic number to tell the clock that data will be sent
 	printf("Connecting to the clock...");
 	fflush(stdout);
-	UARTWriteByte(MAIN_UART_PROTOCOL_MAGIC_NUMBER);
+	SerialPortWriteByte(Main_Serial_Port_ID, MAIN_UART_PROTOCOL_MAGIC_NUMBER);
 	// Wait for the answer
-	while (UARTReadByte() != MAIN_UART_PROTOCOL_MAGIC_NUMBER);
+	while (SerialPortReadByte(Main_Serial_Port_ID) != MAIN_UART_PROTOCOL_MAGIC_NUMBER);
 	printf(" connected.\n");
 	
 	// Get the current date and time now that all blocking operations are done (for a better accuracy)
@@ -106,26 +112,26 @@ int main(int argc, char *argv[])
 	printf("Sending data...");
 	fflush(stdout);
 	// Send seconds
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_sec));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_sec));
 	// Send minutes
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_min));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_min));
 	// Send hours
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_hour));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_hour));
 	// Send the day of the week (starting from 1 on the RTC)
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_wday + 1));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_wday + 1));
 	// Send the day of the month
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mday));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mday));
 	// Send the month (starting from 1 on the RTC)
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mon + 1));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_mon + 1));
 	// Send the year (starting from 2000 on the RTC)
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_year - 100));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Pointer_Converted_Time->tm_year - 100));
 	// Send alarm hour
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Alarm_Hour));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Alarm_Hour));
 	// Send alarm minutes
-	UARTWriteByte(MainConvertBinaryNumberToBCD(Alarm_Minutes));
+	SerialPortWriteByte(Main_Serial_Port_ID, MainConvertBinaryNumberToBCD(Alarm_Minutes));
 	
 	// Wait for the clock answer
-	while (UARTReadByte() != MAIN_UART_PROTOCOL_MAGIC_NUMBER);
+	while (SerialPortReadByte(Main_Serial_Port_ID) != MAIN_UART_PROTOCOL_MAGIC_NUMBER);
 	printf(" done.\nThe clock is successfully configured. You can unplug the cable.\n");
 	
 	return EXIT_SUCCESS;
