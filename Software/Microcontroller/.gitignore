@@ -3,6 +3,7 @@ Debug
 *.brws
 *.casm
 *.cof
+*.hex
 *.lst
 *.map
 *.obj
