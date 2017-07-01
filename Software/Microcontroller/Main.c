@@ -61,6 +61,9 @@ void interrupt(void)
 	
 	// Handle the display backlight timer
 	if (DISPLAY_HAS_INTERRUPT_FIRED()) DisplayInterruptHandler();
+	
+	// Handle the serial port used to configure the clock
+	if (UART_HAS_INTERRUPT_FIRED()) UARTInterruptHandler();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -106,28 +109,15 @@ void main(void)
 	{
 		RTC_WAIT_TICK_BEGINNING();
 		
-		// Was the magic number received on the UART ?
-		if (UARTIsByteReceived() && (UARTReadByte() == UART_PROTOCOL_MAGIC_NUMBER))
+		// Were new configuration data received from the UART ?
+		if (UARTAreConfigurationDataAvailable(&Clock_Data, &Alarm_Hour, &Alarm_Minutes))
 		{
-			// Send the magic number to the PC to tell the microcontroller is ready to receive the data
-			UARTWriteByte(UART_PROTOCOL_MAGIC_NUMBER);
-			
-			// Receive the date and time values
-			for (i = 0; i < sizeof(TRTCClockData); i++) Clock_Data.Array[i] = UARTReadByte();
-			
-			// Receive the alarm values
-			Alarm_Hour = UARTReadByte();
-			Alarm_Minutes = UARTReadByte();
-			
 			// Set the new RTC date and time
 			RTCSetDateAndTime(&Clock_Data);
 			
 			// Save the alarm to the RTC RAM
 			RTCWriteByte(MAIN_ALARM_BASE_ADDRESS, Alarm_Hour);
 			RTCWriteByte(MAIN_ALARM_BASE_ADDRESS + 1, Alarm_Minutes);
-			
-			// Tell the PC that everything went fine
-			UARTWriteByte(UART_PROTOCOL_MAGIC_NUMBER);
 		}
 		
 		// Get the date and time to display

@@ -23,7 +23,7 @@ Release\Ring.obj: Ring.c Button.h Ring.h
 Release\Temperature_Sensor.obj: Temperature_Sensor.c Temperature_Sensor.h
 	$(CC) $< -t PIC16F876  -idx 1 -obj Release -d _RELEASE
 
-Release\UART.obj: UART.c UART.h
+Release\UART.obj: UART.c RTC.h UART.h
 	$(CC) $< -t PIC16F876  -idx 1 -obj Release -d _RELEASE
 
 LD = "C:\Program Files\SourceBoost\boostlink_picmicro.exe"
