@@ -22,20 +22,20 @@
 /** All the RTC clock-related registers. They must be in the same order than the RTC register map to allow this struct to be accessed as an array of registers. */
 typedef struct
 {
-	unsigned char Seconds; //! The seconds in range [0;59].
-	unsigned char Minutes; //! The minutes in range [0;59].
-	unsigned char Hours; //! The hours in range [0;23].
-	unsigned char Day_Of_Week; //! The day of the week in range [0;7]. 0 stands for sunday, 1 for monday and so on.
-	unsigned char Day; //! The day of the month in range [1;31].
-	unsigned char Month; //! The month in range [1;12].
-	unsigned char Year; //! The year in range [0;99].
+	unsigned char Seconds; //!< The seconds in range [0;59].
+	unsigned char Minutes; //!< The minutes in range [0;59].
+	unsigned char Hours; //!< The hours in range [0;23].
+	unsigned char Day_Of_Week; //!< The day of the week in range [0;7]. 0 stands for sunday, 1 for monday and so on.
+	unsigned char Day; //!< The day of the month in range [1;31].
+	unsigned char Month; //!< The month in range [1;12].
+	unsigned char Year; //!< The year in range [0;99].
 } TRTCClockRegisters;
 
 /** The RTC clock time and date. These data can be accessed as raw array or by register name. */
 typedef union
 {
-	unsigned char Array[sizeof(TRTCClockRegisters)]; //! Raw access to the register map.
-	TRTCClockRegisters Register_Name; //! Named access to the registers.
+	unsigned char Array[sizeof(TRTCClockRegisters)]; //!< Raw access to the register map.
+	TRTCClockRegisters Register_Name; //!< Named access to the registers.
 } TRTCClockData;
 
 //--------------------------------------------------------------------------------------------------
