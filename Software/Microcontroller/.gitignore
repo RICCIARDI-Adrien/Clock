@@ -1,4 +1,5 @@
 Debug
+makefile.Clock
 *.asm
 *.brws
 *.casm
