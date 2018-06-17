@@ -18,7 +18,7 @@
 //--------------------------------------------------------------------------------------------------
 // Functions
 //--------------------------------------------------------------------------------------------------
-/** Initialize the button pins and the timer used by the snooze button to light the display backlight. */
+/** Initialize the alarm and snooze buttons pins. */
 void ButtonInitialize(void);
 
 /** Test the alarm button to check whether the alarm is enabled or not
