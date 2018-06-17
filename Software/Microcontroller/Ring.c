@@ -27,6 +27,9 @@ static unsigned char Ring_Tone[] =
 /** The ring "note" index. */
 static unsigned char Ring_Tone_Index;
 
+/** How many times the melody will be played before being automatically shut off. */
+static unsigned char Ring_Melody_Loops_Count;
+
 //--------------------------------------------------------------------------------------------------
 // Public functions
 //--------------------------------------------------------------------------------------------------
@@ -51,9 +54,12 @@ void RingStart(void)
 	intcon.T0IF = 0; // Clear the interrupt flag to avoid triggering a spurious interrupt
 	intcon.T0IE = 1;
 	
-	// Start from the ring beginning
+	// Start from the melody first note
 	portc.1 = Ring_Tone[0];
 	Ring_Tone_Index = 0;
+	
+	// Melody will be played this amount of time then will be shut down if the user did not 
+	Ring_Melody_Loops_Count = 60;
 }
 
 void RingStop(void)
@@ -67,8 +73,8 @@ void RingStop(void)
 
 void RingInterruptHandler(void)
 {
-	// Stop the alarm if the alarm button is switched to "disabled"
-	if (!ButtonIsAlarmEnabled()) RingStop();
+	// Stop the alarm if the alarm button is switched to "disabled", or if the alarm rang too long
+	if ((!ButtonIsAlarmEnabled()) || (Ring_Melody_Loops_Count == 0)) RingStop();
 	else
 	{
 		// Reload the timer
@@ -76,7 +82,11 @@ void RingInterruptHandler(void)
 		
 		// Play next tone
 		Ring_Tone_Index++;
-		if (Ring_Tone_Index >= sizeof(Ring_Tone)) Ring_Tone_Index = 0;
+		if (Ring_Tone_Index >= sizeof(Ring_Tone))
+		{
+			Ring_Tone_Index = 0;
+			Ring_Melody_Loops_Count--; // Melody is restarting from the begining
+		}
 		portc.1 = Ring_Tone[Ring_Tone_Index];
 	}
 	
